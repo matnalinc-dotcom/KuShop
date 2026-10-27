@@ -1,19 +1,20 @@
-import database from "../services/database.js"
+import database from "../services/database.js";
 
 // 1. ตรวจสอบว่ามีตะกร้าค้าง (ยังไม่ CF) หรือไม่
 export async function chkCart(req, res) {
-    console.log(`POST CART customer ${req.body.memEmail} is requested`);
+    const customerEmail = (req.body.memEmail || "").trim().toLowerCase();
+    console.log(`POST CART customer ${customerEmail} is requested`);
     
     // Validate Data
-    if (req.body.memEmail == null) {
+    if (!customerEmail) {
         return res.json({ error: true, errormessage: "member Email is required" });
     }
 
     try {
-        // ตรวจสอบตะกร้าที่ยังไม่ได้ CF
+        // ตรวจสอบตะกร้าที่ยังไม่ได้ CF (Case-Insensitive)
         const result = await database.query({
-            text: 'SELECT * FROM carts WHERE "cusId" = $1 AND "cartCf" != true',
-            values: [req.body.memEmail],
+            text: 'SELECT * FROM carts WHERE LOWER("cusId") = LOWER($1) AND "cartCf" != true',
+            values: [customerEmail],
         });
 
         if (result.rows[0] != null) {
@@ -30,7 +31,8 @@ export async function chkCart(req, res) {
 export async function postCart(req, res) {
     console.log("POST/CART is requested");
     try {
-        if (req.body.cusId == null) {
+        const customerId = (req.body.cusId || req.body.id || "").trim().toLowerCase();
+        if (!customerId) {
             return res.json({ cartOK: false, messageAddCart: "Customer Id is required" });
         }
 
@@ -58,7 +60,7 @@ export async function postCart(req, res) {
         // บันทึกข้อมูลลงตะกร้า
         await database.query({
             text: 'INSERT INTO carts ("cartId", "cusId", "cartDate") VALUES ($1, $2, $3)',
-            values: [theId, req.body.cusId, now],
+            values: [theId, customerId, now],
         });
 
         return res.json({ cartOK: true, messageAddCart: theId });
@@ -78,18 +80,17 @@ export async function postCartDtl(req, res) {
             });
         }
 
-        // ดูว่ามี Product เดิมอยู่หรือไม่
         const pdResult = await database.query({
             text: 'SELECT * FROM "cartDtl" ctd WHERE ctd."cartId" = $1 AND ctd."pdId" = $2',
             values: [req.body.cartId, req.body.pdId],
         });
 
-        if (pdResult.rowCount == 0) {
+        if (pdResult.rowCount === 0) {
             // ถ้าไม่มีให้ INSERT
             try {
                 await database.query({
                     text: 'INSERT INTO "cartDtl" ("cartId", "pdId", "qty", "price") VALUES ($1, $2, $3, $4)',
-                    values: [req.body.cartId, req.body.pdId, 1, req.body.pdPrice],
+                    values: [req.body.cartId, req.body.pdId, 1, Number(req.body.pdPrice)],
                 });
                 return res.json({ cartDtlOK: true, messageAddCart: req.body.cartId });
             } catch (err) {
@@ -99,11 +100,12 @@ export async function postCartDtl(req, res) {
                 });
             }
         } else {
-            // ถ้ามีแล้วให้ UPDATE (qty + 1)
+            // ถ้ามีแล้วให้ UPDATE (qty + 1 แบบปลอดภัยด้วย Number)
             try {
+                const currentQty = Number(pdResult.rows[0].qty) || 1;
                 await database.query({
                     text: 'UPDATE "cartDtl" SET "qty" = $1 WHERE "cartId" = $2 AND "pdId" = $3',
-                    values: [pdResult.rows[0].qty + 1, req.body.cartId, req.body.pdId],
+                    values: [currentQty + 1, req.body.cartId, req.body.pdId],
                 });
                 return res.json({ cartDtlOK: true, messageAddCart: req.body.cartId });
             } catch (err) {
@@ -129,11 +131,10 @@ export async function sumCart(req, res) {
             text: 'SELECT SUM(qty) AS qty, SUM(qty * price) AS money FROM "cartDtl" ctd WHERE ctd."cartId" = $1',
             values: [req.params.id],
         });
-        console.log(result.rows[0]);
         return res.json({
             id: req.params.id,
-            qty: result.rows[0].qty || 0,
-            money: result.rows[0].money || 0,
+            qty: Number(result.rows[0]?.qty || 0),
+            money: Number(result.rows[0]?.money || 0),
         });
     } catch (err) {
         return res.json({ error: err.message });
@@ -151,7 +152,6 @@ export async function getCart(req, res) {
                    GROUP BY ct."cartId"`,
             values: [req.params.id],
         });
-        console.log(`id=${req.params.id} \n`, result.rows[0]);
         return res.json(result.rows);
     } catch (err) {
         return res.json({ error: err.message });
@@ -164,13 +164,12 @@ export async function getCartDtl(req, res) {
     try {
         const result = await database.query({
             text: `SELECT ROW_NUMBER() OVER (ORDER BY ctd."pdId") AS row_number,
-                          ctd."pdId", pd."pdName", ctd.qty, ctd.price
+                          ctd."pdId", COALESCE(pd."pdName", ctd."pdId") AS "pdName", ctd.qty, ctd.price
                    FROM "cartDtl" ctd LEFT JOIN "products" pd ON ctd."pdId" = pd."pdId"
                    WHERE ctd."cartId" = $1
                    ORDER BY ctd."pdId"`,
             values: [req.params.id],
         });
-        console.log(`id=${req.params.id} \n`, result.rows[0]);
         return res.json(result.rows);
     } catch (err) {
         return res.json({ error: err.message });
@@ -179,21 +178,40 @@ export async function getCartDtl(req, res) {
 
 // 7. ดึงข้อมูลตะกร้าทั้งหมดของผู้ใช้งาน (Customer)
 export async function getCartByCus(req, res) {
-    console.log("POST Cart By Customer is Requested");
+    const customerId = (req.body.id || req.body.cusId || "").trim().toLowerCase();
+    console.log(`POST Cart By Customer is Requested: ${customerId}`);
     try {
         const result = await database.query({
             text: `SELECT ROW_NUMBER() OVER (ORDER BY ct."cartId" DESC) AS row_number,
                           ct.*, SUM(ctd.qty) AS sqty, SUM(ctd.price*ctd.qty) AS sprice
                    FROM carts ct LEFT JOIN "cartDtl" ctd ON ct."cartId" = ctd."cartId"
-                   WHERE ct."cusId" = $1
+                   WHERE LOWER(ct."cusId") = LOWER($1)
                    GROUP BY ct."cartId"
                    ORDER BY ct."cartId" DESC`,
-            values: [req.body.id],
+            values: [customerId],
         });
-        console.log(`id=${req.body.id} \n`, result.rows[0]);
         return res.json(result.rows);
     } catch (err) {
         return res.json({ error: err.message });
+    }
+}
+
+// 7.1 ดึงข้อมูลตะกร้าทั้งหมดในระบบ [Admin]
+export async function getAllCarts(req, res) {
+    console.log("GET All Carts is Requested");
+    try {
+        const result = await database.query(`
+            SELECT ROW_NUMBER() OVER (ORDER BY ct."cartId" DESC) AS row_number,
+                   ct.*, m."memName", SUM(ctd.qty) AS sqty, SUM(ctd.price*ctd.qty) AS sprice
+            FROM carts ct
+            LEFT JOIN "cartDtl" ctd ON ct."cartId" = ctd."cartId"
+            LEFT JOIN members m ON LOWER(ct."cusId") = LOWER(m."memEmail")
+            GROUP BY ct."cartId", m."memName"
+            ORDER BY ct."cartId" DESC
+        `);
+        return res.json(result.rows);
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
     }
 }
 

@@ -1,14 +1,19 @@
 <template>
   <div class="container mt-4">
-    <div v-if="memEmail == cusId">
+    <div v-if="memEmail == cusId || dutyId === 'admin'">
       <div v-for="(ct, index) in cart" :key="ct.cartId || index" class="mt-3">
-        <div class="card bg-light">
+        <div class="card bg-light shadow-sm">
           <div class="card-body">
-            <h4 class="card-title text-primary opacity-75">คำสั่งซื้อเลขที่ {{ ct.cartId }}</h4>
+            <div class="d-flex justify-content-between align-items-center">
+              <h4 class="card-title text-primary opacity-75 mb-0">คำสั่งซื้อเลขที่ {{ ct.cartId }}</h4>
+              <span v-if="dutyId === 'admin'" class="badge bg-warning text-dark">
+                ลูกค้า: {{ ct.cusId }}
+              </span>
+            </div>
             <h5 class="card-subtitle mt-2 text-muted">
               สั่งซื้อวันที่ {{ formattedDate(ct.cartDate) }}
             </h5>
-            <div class="text-danger text-end">
+            <div class="text-danger text-end fs-5 fw-bold">
               จำนวนสินค้า {{ ct.sqty }} ชิ้น, ยอดเงิน {{ (ct.sprice ?? 0).toLocaleString() }} บาท
             </div>
             <hr />
@@ -24,23 +29,23 @@
             </div>
             <!-- 💡 หากยืนยันสั่งซื้อแล้ว ให้แสดงข้อความแจ้งเตือนแทน -->
             <div v-else class="text-success fw-bold text-end">
-              <i class="bi bi-check-circle-fill"></i> ชำระเงิน/ยืนยันการสั่งซื้อเรียบร้อยแล้ว
+              <i class="bi bi-check-circle-fill"></i> ชำระเงิน / ยืนยันการสั่งซื้อเรียบร้อยแล้ว
             </div>
           </div>
         </div>
       </div>
 
-      <table class="table mt-3 align-middle">
-        <thead>
-          <tr class="bg-secondary bg-opacity-10">
-            <td>#</td>
-            <td>รหัสสินค้า</td>
-            <td>ชื่อสินค้า</td>
-            <td class="text-end">ราคาต่อหน่วย</td>
-            <td class="text-center">จำนวน</td>
-            <td class="text-end">เป็นเงิน</td>
+      <table class="table mt-4 align-middle table-striped table-bordered">
+        <thead class="table-secondary">
+          <tr>
+            <th>#</th>
+            <th>รหัสสินค้า</th>
+            <th>ชื่อสินค้า</th>
+            <th class="text-end">ราคาต่อหน่วย</th>
+            <th class="text-center">จำนวน</th>
+            <th class="text-end">เป็นเงิน</th>
             <!-- 💡 ซ่อนคอลัมน์ "จัดการ" หากยืนยันสั่งซื้อแล้ว -->
-            <td v-if="cart.length > 0 && !cart[0].cartCf" class="text-center">จัดการ</td>
+            <th v-if="cart.length > 0 && !cart[0].cartCf" class="text-center">จัดการ</th>
           </tr>
         </thead>
         <tbody>
@@ -83,6 +88,7 @@ const cartDtl = ref([]);
 const cartId = ref(null);
 const cusId = ref(null);
 const memEmail = ref(null);
+const dutyId = ref(null);
 
 const formattedDate = (dateStr) => {
   if (!dateStr) return '';
@@ -101,7 +107,7 @@ onMounted(async () => {
 });
 
 const getCart = async () => {
-  await axios.get(`http://localhost:3000/carts/getcart/${cartId.value}`)
+  await axios.get(`/carts/getcart/${cartId.value}`)
     .then(res => {
       cart.value = res.data;
       if (cart.value.length > 0) {
@@ -112,7 +118,7 @@ const getCart = async () => {
 };
 
 const getCartDtl = async () => {
-  await axios.get(`http://localhost:3000/carts/getcartdtl/${cartId.value}`)
+  await axios.get(`/carts/getcartdtl/${cartId.value}`)
     .then(res => {
       cartDtl.value = res.data;
     })
@@ -120,9 +126,10 @@ const getCartDtl = async () => {
 };
 
 const getMember = async () => {
-  await axios.get("http://localhost:3000/members/detail")
+  await axios.get("/members/detail")
     .then((res) => {
       memEmail.value = res.data.memEmail;
+      dutyId.value = res.data.dutyId || 'member';
     })
     .catch(err => console.log(err.message));
 };
@@ -130,12 +137,12 @@ const getMember = async () => {
 // 1. ลบสินค้าทีละชิ้น
 const delCartDtl = async (pdId) => {
   if (confirm('ยืนยันลบสินค้ารายการนี้?')) {
-    await axios.delete(`http://localhost:3000/carts/delcartdtl/${cartId.value}/${pdId}`)
+    await axios.delete(`/carts/delcartdtl/${cartId.value}/${pdId}`)
       .then(async (res) => {
         if (res.data.cartDtlOK) {
-          await getCart();    // โหลดส่วนหัวเพื่ออัปเดตราคารวม
-          await getCartDtl(); // โหลดรายการสินค้าใหม่
-          cartStore.updateQty(); // อัปเดตจำนวนตัวเลขบน MainMenu
+          await getCart();
+          await getCartDtl();
+          cartStore.updateQty();
         } else {
           alert(res.data.message);
         }
@@ -147,12 +154,12 @@ const delCartDtl = async (pdId) => {
 // 2. ลบตะกร้าทั้งใบ
 const delCart = async () => {
   if (confirm('ยืนยันลบตะกร้าสินค้าทั้งหมด?')) {
-    await axios.delete(`http://localhost:3000/carts/delcart/${cartId.value}`)
+    await axios.delete(`/carts/delcart/${cartId.value}`)
       .then((res) => {
         if (res.data.cartOK) {
           alert('ลบตะกร้าเรียบร้อยแล้ว');
           cartStore.updateQty();
-          router.push('/'); 
+          router.push('/cartlist'); 
         } else {
           alert(res.data.message);
         }
@@ -164,7 +171,7 @@ const delCart = async () => {
 // 3. ยืนยันสั่งสินค้า (ชำระเงิน)
 const confirmCart = async () => {
   if (confirm('ยืนยันการสั่งซื้อสินค้า?')) {
-    await axios.post('http://localhost:3000/carts/confirmcart', { cartId: cartId.value })
+    await axios.post('/carts/confirmcart', { cartId: cartId.value })
       .then((res) => {
         if (res.data.confirmOK) {
           alert('ยืนยันการสั่งซื้อสำเร็จ!');

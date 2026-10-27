@@ -1,123 +1,653 @@
 openapi: 3.0.0
 info:
-  title: KUSHOP API
-  description: KUSHOP Project from Kasetsart University Sriracha Campus.
-  version: 0.1
+  title: KUSHOP API Documentation
+  description: |
+    API Documentation for KUSHOP Web Application (Final Project).
+    Includes endpoints for Products, Members, Authentication, and Cart Transactions.
+  version: 1.0.0
 servers:
   - url: http://localhost:3000/
+    description: Local Development Server
 
 paths:
+  # ==========================================
+  # PRODUCTS ENDPOINTS
+  # ==========================================
   /products:
-    # GET All Product
     get:
-      summary: Returns a list all of products.
-      description: |
-        List all products in array of object format.<br>
-        Each product contains details like product ID, name, price, etc.
+      tags:
+        - Products
+      summary: ดึงข้อมูลสินค้าทั้งหมด (Get all products)
+      description: ส่งคืนรายการสินค้าทั้งหมดในระบบพร้อมข้อมูลแบรนด์และประเภทสินค้า
       responses:
         '200':
-          description: A JSON array of Products
+          description: สำเร็จ ส่งคืนรายการสินค้าแบบ Array
           content:
             application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/products'
-
-    # POST new product
+              example:
+                - pdId: "001"
+                  pdName: "KU Shirt"
+                  pdPrice: 350
+                  pdTypeId: "T01"
+                  brandId: "B01"
+                  Remark: "เสื้อมหาวิทยาลัยเกษตรศาสตร์"
+                  brand:
+                    brandName: "Brand A"
+                  pdt:
+                    pdTypeName: "สินค้าชนิดที่1"
     post:
-      summary: Creates a new Product.
+      tags:
+        - Products
+      summary: เพิ่มสินค้าใหม่ (Add new product) [Admin]
+      description: บันทึกข้อมูลสินค้าใหม่เข้าสู่ระบบ
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/new_product'
+              type: object
+              required:
+                - pdId
+                - pdName
+                - pdPrice
+              properties:
+                pdId:
+                  type: string
+                  example: "007"
+                pdName:
+                  type: string
+                  example: "KU Mug"
+                pdPrice:
+                  type: number
+                  example: 199
+                pdTypeId:
+                  type: string
+                  example: "T01"
+                brandId:
+                  type: string
+                  example: "B01"
+                Remark:
+                  type: string
+                  example: "แก้วน้ำเซรามิก KU"
       responses:
         '201':
-          description: Product is created.
+          description: เพิ่มสินค้าสำเร็จ
+          content:
+            application/json:
+              example:
+                message: "เพิ่มสินค้าสำเร็จ"
+                success: true
+                pdId: "007"
         '409':
-          description: Product ID is existed.
-        '500':
-          description: Server Error
+          description: รหัสสินค้านี้มีอยู่แล้ว
 
-  /products/{id}:
-    # GET Product by ID
+  /products/three:
     get:
-      summary: Returns the specify products.
-      description: |
-        Show a products in array of object format
+      tags:
+        - Products
+      summary: ดึงสินค้าแนะนำ 3 รายการแรก (Get top 3 products)
+      description: ใช้สำหรับแสดงสินค้าในหน้าแรก (Home Page)
+      responses:
+        '200':
+          description: สำเร็จ ส่งคืนสินค้า 3 รายการ
+
+  /products/search/{id}:
+    get:
+      tags:
+        - Products
+      summary: ค้นหาสินค้าตามคีย์เวิร์ด (Search products)
       parameters:
         - name: id
           in: path
           required: true
-          description: Product ID
+          description: คำค้นหา (รหัสสินค้า, ชื่อ หรือ รายละเอียด)
+          schema:
+            type: string
+            example: "Shirt"
+      responses:
+        '200':
+          description: รายการสินค้าที่ค้นพบ
+
+  /products/{id}:
+    get:
+      tags:
+        - Products
+      summary: ดึงข้อมูลสินค้ารายชิ้นตาม ID (Get product by ID)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: รหัสสินค้า
+          schema:
+            type: string
+            example: "001"
+      responses:
+        '200':
+          description: ข้อมูลสินค้า
+        '404':
+          description: ไม่พบสินค้า
+    put:
+      tags:
+        - Products
+      summary: แก้ไขข้อมูลสินค้า (Update product) [Admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: รหัสสินค้าที่ต้องการแก้ไข
+          schema:
+            type: string
+            example: "001"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pdName:
+                  type: string
+                  example: "KU Shirt Special Edition"
+                pdPrice:
+                  type: number
+                  example: 390
+                pdTypeId:
+                  type: string
+                  example: "T01"
+                brandId:
+                  type: string
+                  example: "B01"
+                Remark:
+                  type: string
+                  example: "ปรับปรุงเนื้อผ้าใหม่"
+      responses:
+        '200':
+          description: แก้ไขข้อมูลสำเร็จ
+          content:
+            application/json:
+              example:
+                message: "แก้ไขข้อมูลสินค้าสำเร็จ"
+                success: true
+    delete:
+      tags:
+        - Products
+      summary: ลบสินค้า (Delete product) [Admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: รหัสสินค้าที่ต้องการลบ
+          schema:
+            type: string
+            example: "007"
+      responses:
+        '200':
+          description: ลบสินค้าสำเร็จ
+
+  /products/uploadimg:
+    post:
+      tags:
+        - Products
+      summary: อัปโหลดรูปภาพสินค้า (Upload product image) [Admin]
+      description: อัปโหลดไฟล์รูปภาพของสินค้า (JPG) บันทึกไว้ที่ img_pd/{pdId}.jpg
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                pdId:
+                  type: string
+                  example: "001"
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: อัปโหลดรูปภาพสำเร็จ
+
+  /products/meta/brands:
+    get:
+      tags:
+        - Products
+      summary: ดึงข้อมูลแบรนด์สินค้าทั้งหมด (Get brand list)
+      responses:
+        '200':
+          description: รายการแบรนด์สินค้า
+
+  /products/meta/types:
+    get:
+      tags:
+        - Products
+      summary: ดึงข้อมูลประเภทสินค้าทั้งหมด (Get product types)
+      responses:
+        '200':
+          description: รายการประเภทสินค้า
+
+  # ==========================================
+  # MEMBERS & AUTHENTICATION ENDPOINTS
+  # ==========================================
+  /members/detail:
+    get:
+      tags:
+        - Members
+      summary: ดึงข้อมูลโปรไฟล์ผู้ใช้งานปัจจุบัน (Get current member detail)
+      description: อ่าน JWT Cookie เพื่อระบุตัวตนและส่งคืนข้อมูลชื่อ อีเมล และสิทธิ์ (dutyId)
+      responses:
+        '200':
+          description: ข้อมูลสมาชิก
+          content:
+            application/json:
+              example:
+                memEmail: "test001@gmail.com"
+                memName: "Test001"
+                dutyId: "member"
+                login: true
+
+  /members/login:
+    post:
+      tags:
+        - Members
+      summary: เข้าสู่ระบบ (Member Login)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - loginName
+                - password
+              properties:
+                loginName:
+                  type: string
+                  example: "test001@gmail.com"
+                password:
+                  type: string
+                  example: "1234"
+      responses:
+        '200':
+          description: ผลการเข้าสู่ระบบ (จะแนบ HttpOnly Cookie มาด้วย)
+          content:
+            application/json:
+              example:
+                message: "Login Success"
+                login: true
+                dutyId: "member"
+                memName: "Test001"
+
+  /members/logout:
+    get:
+      tags:
+        - Members
+      summary: ออกจากระบบ (Logout)
+      description: สั่งล้าง Cookie Token
+      responses:
+        '200':
+          description: ออกจากระบบสำเร็จ
+
+  /members:
+    post:
+      tags:
+        - Members
+      summary: สมัครสมาชิก (Register new member)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - memEmail
+                - memName
+                - password
+              properties:
+                memEmail:
+                  type: string
+                  example: "newuser@ku.th"
+                memName:
+                  type: string
+                  example: "สมชาย รักเรียน"
+                password:
+                  type: string
+                  example: "password123"
+      responses:
+        '200':
+          description: สมัครสมาชิกสำเร็จ
+          content:
+            application/json:
+              example:
+                message: "สมัครสมาชิกสำเร็จ"
+                regist: true
+
+  /members/update:
+    put:
+      tags:
+        - Members
+      summary: แก้ไขข้อมูลส่วนตัวของสมาชิก (Update profile) [Member]
+      description: แก้ไขชื่อ-นามสกุล หรือ รหัสผ่าน
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - memEmail
+                - memName
+              properties:
+                memEmail:
+                  type: string
+                  example: "test001@gmail.com"
+                memName:
+                  type: string
+                  example: "Test User New Name"
+                password:
+                  type: string
+                  example: "newpassword"
+      responses:
+        '200':
+          description: แก้ไขข้อมูลสำเร็จ
+
+  /members/all:
+    get:
+      tags:
+        - Members
+      summary: แสดงรายชื่อสมาชิกทั้งหมด (List all members) [Admin]
+      responses:
+        '200':
+          description: รายชื่อสมาชิกทั้งหมดในระบบ
+          content:
+            application/json:
+              example:
+                - memEmail: "admin@ku.th"
+                  memName: "Admin KU"
+                  dutyid: "admin"
+                - memEmail: "test001@gmail.com"
+                  memName: "Test001"
+                  dutyid: "member"
+
+  /members/duty:
+    put:
+      tags:
+        - Members
+      summary: เปลี่ยนสถานะ/สิทธิ์ของสมาชิก (Update member duty/status) [Admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - memEmail
+                - dutyId
+              properties:
+                memEmail:
+                  type: string
+                  example: "test001@gmail.com"
+                dutyId:
+                  type: string
+                  enum: ["member", "admin"]
+                  example: "admin"
+      responses:
+        '200':
+          description: เปลี่ยนสถานะสำเร็จ
+          content:
+            application/json:
+              example:
+                message: "เปลี่ยนสถานะเป็น admin สำเร็จ"
+                success: true
+
+  /members/uploadimg:
+    post:
+      tags:
+        - Members
+      summary: อัปโหลดรูปภาพโปรไฟล์สมาชิก (Upload member avatar)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                memEmail:
+                  type: string
+                  example: "test001@gmail.com"
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: อัปโหลดสำเร็จ
+
+  # ==========================================
+  # CARTS & TRANSACTIONS ENDPOINTS
+  # ==========================================
+  /carts/chkcart:
+    post:
+      tags:
+        - Cart & Transactions
+      summary: ตรวจสอบตะกร้าที่ยังไม่ยืนยันสั่งซื้อ (Check active cart)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - memEmail
+              properties:
+                memEmail:
+                  type: string
+                  example: "test001@gmail.com"
+      responses:
+        '200':
+          description: ผลการตรวจสอบ
+          content:
+            application/json:
+              example:
+                cartExist: true
+                cartId: "202610270001"
+
+  /carts/addcart:
+    post:
+      tags:
+        - Cart & Transactions
+      summary: สร้างตะกร้าใหม่ (Create new cart)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cusId
+              properties:
+                cusId:
+                  type: string
+                  example: "test001@gmail.com"
+      responses:
+        '200':
+          description: สร้างสำเร็จ ส่งคืน cartId ที่สร้าง
+          content:
+            application/json:
+              example:
+                cartOK: true
+                messageAddCart: "202610270001"
+
+  /carts/addcartdtl:
+    post:
+      tags:
+        - Cart & Transactions
+      summary: เพิ่มสินค้าลงตะกร้า (Add item to cart)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cartId
+                - pdId
+                - pdPrice
+              properties:
+                cartId:
+                  type: string
+                  example: "202610270001"
+                pdId:
+                  type: string
+                  example: "001"
+                pdPrice:
+                  type: number
+                  example: 350
+      responses:
+        '200':
+          description: เพิ่มสินค้าลงในตะกร้าสำเร็จ
+
+  /carts/sumcart/{id}:
+    get:
+      tags:
+        - Cart & Transactions
+      summary: คำนวณยอดรวมจำนวนและยอดเงินในตะกร้า (Get cart summary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: เลขที่ตะกร้า
+          schema:
+            type: string
+            example: "202610270001"
+      responses:
+        '200':
+          description: ยอดรวม
+          content:
+            application/json:
+              example:
+                id: "202610270001"
+                qty: 2
+                money: 700
+
+  /carts/getcart/{id}:
+    get:
+      tags:
+        - Cart & Transactions
+      summary: ดึงข้อมูลส่วนหัวตะกร้า (Get cart master)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: เลขที่ตะกร้า
+          schema:
+            type: string
+            example: "202610270001"
+      responses:
+        '200':
+          description: ข้อมูลตะกร้า
+
+  /carts/getcartdtl/{id}:
+    get:
+      tags:
+        - Cart & Transactions
+      summary: ดึงรายการสินค้าทั้งหมดในตะกร้า (Get cart details)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: เลขที่ตะกร้า
+          schema:
+            type: string
+            example: "202610270001"
+      responses:
+        '200':
+          description: รายการสินค้าในตะกร้า
+
+  /carts/getcartbycus:
+    post:
+      tags:
+        - Cart & Transactions
+      summary: ดึงประวัติการสั่งซื้อของลูกค้า (Get cart history by customer)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "test001@gmail.com"
+                cusId:
+                  type: string
+                  example: "test001@gmail.com"
+      responses:
+        '200':
+          description: รายการประวัติตะกร้าทั้งหมดของลูกค้า
+
+  /carts/all:
+    get:
+      tags:
+        - Cart & Transactions
+      summary: ดึงประวัติคำสั่งซื้อทั้งหมดในระบบ (Get all carts) [Admin]
+      responses:
+        '200':
+          description: รายการคำสั่งซื้อทั้งหมดของลูกค้าทุกคน
+
+  /carts/delcartdtl/{cartId}/{pdId}:
+    delete:
+      tags:
+        - Cart & Transactions
+      summary: ลบสินค้าทีละชิ้นออกจากตะกร้า (Delete single item from cart)
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          description: เลขที่ตะกร้า
+          schema:
+            type: string
+        - name: pdId
+          in: path
+          required: true
+          description: รหัสสินค้า
           schema:
             type: string
       responses:
         '200':
-          description: A JSON array of Products
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/products'
-        '404':
-          description: A product with the specified ID was not found.
-        '500':
-          description: Server error.
+          description: ลบสินค้าสำเร็จ (ถ้ายังไม่ยืนยันสั่งซื้อ)
 
-components:
-  schemas:
-    products:
-      type: object
-      properties:
-        pdId:
-          type: string
-        pdName:
-          type: string
-        pdPrice:
-          type: number
-        pdRemark:
-          type: string
-        pdTypeId:
-          type: string
-        brandId:
-          type: string
-        brand:
-          $ref: '#/components/schemas/brands'
-        pdt:
-          $ref: '#/components/schemas/productType'
+  /carts/delcart/{cartId}:
+    delete:
+      tags:
+        - Cart & Transactions
+      summary: ลบตะกร้าสินค้าทั้งใบ (Delete whole cart)
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          description: เลขที่ตะกร้า
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ลบตะกร้าสำเร็จ (ถ้ายังไม่ยืนยันสั่งซื้อ)
 
-    new_product:
-      type: object
-      properties:
-        pdId:
-          type: string
-        pdName:
-          type: string
-        pdPrice:
-          type: number
-        pdRemark:
-          type: string
-        pdTypeId:
-          type: string
-        brandId:
-          type: string
-
-    brands:
-      type: object
-      properties:
-        brandId:
-          type: string
-        brandName:
-          type: string
-
-    productType:
-      type: object
-      properties:
-        pdTypeId:
-          type: string
-        pdTypeName:
-          type: string
+  /carts/confirmcart:
+    post:
+      tags:
+        - Cart & Transactions
+      summary: ยืนยันการสั่งซื้อสินค้า / ชำระเงิน (Confirm cart / Checkout)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cartId
+              properties:
+                cartId:
+                  type: string
+                  example: "202610270001"
+      responses:
+        '200':
+          description: ยืนยันสำเร็จ (เปลี่ยนสถานะ cartCf เป็น true)

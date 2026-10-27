@@ -15,7 +15,7 @@
                   id="username"
                   v-model="username"
                   class="form-control"
-                  placeholder="กรอกอีเมลผู้ใช้"
+                  placeholder="เช่น admin@ku.th หรือ test001@gmail.com"
                   required
                 />
               </div>
@@ -53,7 +53,7 @@
               {{ message }}
             </p>
 
-            <!-- Register Link (ส่วนที่เพิ่มเข้ามา) -->
+            <!-- Register Link -->
             <div class="text-center mt-3 border-top pt-3">
               <span class="text-muted">ยังไม่มีบัญชีผู้ใช้? </span>
               <router-link to="/register" class="text-decoration-none fw-bold">
@@ -85,9 +85,8 @@ const login = ref(null)
 const message = ref("")
 const loading = ref(false)
 
-// ดึงข้อมูล member เพื่อเช็กว่าเคย Login หรือยัง
 const getMember = async () => {
-  await axios.get("http://localhost:3000/members/detail")
+  await axios.get("/members/detail")
     .then((res) => {
       login.value = res.data.login
     })
@@ -106,12 +105,12 @@ const handleLogin = async () => {
   message.value = ""
 
   try {
-    const isLoginSuccess = await memStore.login(username.value, password.value)
+    const res = await memStore.login(username.value, password.value)
 
-    if (isLoginSuccess) {
+    if (res.success) {
       router.push("/pagemember")
     } else {
-      message.value = "อีเมลหรือรหัสผ่านไม่ถูกต้อง"
+      message.value = res.message || "อีเมลหรือรหัสผ่านไม่ถูกต้อง"
     }
   } catch (err) {
     console.error(err)

@@ -1,7 +1,7 @@
 <template>
-  <div v-if="qty > 0">
-    <button class="btn btn-success text-white" @click="router.push(`/cartshow/${cartId}`)">
-      {{ cartId }} [{{ qty }}] {{ money }}B
+  <div v-if="qty > 0 && cartId">
+    <button class="btn btn-warning text-dark fw-bold btn-sm shadow-sm" @click="router.push(`/cartshow/${cartId}`)">
+      <i class="bi bi-cart-fill"></i> {{ cartId }} [{{ qty }} ชิ้น] {{ (money ?? 0).toLocaleString() }} ฿
     </button>
   </div>
 </template>
@@ -18,49 +18,67 @@ const router = useRouter();
 const cartStore = useCartStore();
 
 const memEmail = ref(null);
-const cartId = ref();
+const cartId = ref(null);
 const qty = ref(0);
 const money = ref(0);
-const id = ref(null);
 
-watch(() => cartStore.theQty, () => {
-  id.value = cartStore.cartId;
-  console.log("Watch Cart:" + id.value);
-  sumCart(id.value);
+const refreshCart = async () => {
+  await getMember();
+  if (!memEmail.value) {
+    qty.value = 0;
+    cartId.value = null;
+    return;
+  }
+  await chkCart();
+  if (cartId.value) {
+    await sumCart(cartId.value);
+  } else {
+    qty.value = 0;
+    money.value = 0;
+  }
+};
+
+watch(() => cartStore.theQty, async () => {
+  await refreshCart();
 });
 
 onMounted(async () => {
-  await getMember();
-  await chkCart();
-  await sumCart(cartId.value);
+  await refreshCart();
 });
 
 const chkCart = async () => {
+  if (!memEmail.value) return;
   let members = { memEmail: memEmail.value };
   try {
-    const response = await axios.post("http://localhost:3000/carts/chkcart", members);
-    cartId.value = response.data.cartId;
+    const response = await axios.post("/carts/chkcart", members);
+    if (response.data.cartExist) {
+      cartId.value = response.data.cartId;
+    } else {
+      cartId.value = null;
+    }
   } catch (err) {
     console.log(err);
   }
 };
 
 const getMember = async () => {
-  await axios.get("http://localhost:3000/members/detail")
-    .then((res) => {
-      memEmail.value = res.data.memEmail;
-    })
-    .catch(err => console.log(err.message));
+  try {
+    const res = await axios.get("/members/detail");
+    memEmail.value = res.data.memEmail;
+  } catch (err) {
+    memEmail.value = null;
+  }
 };
 
 const sumCart = async (cid) => {
   if (!cid) return;
-  await axios.get(`http://localhost:3000/carts/sumcart/${cid}`)
-    .then(res => {
-      cartId.value = res.data.id;
-      qty.value = res.data.qty;
-      money.value = res.data.money;
-    })
-    .catch(err => { console.error(err); });
+  try {
+    const res = await axios.get(`/carts/sumcart/${cid}`);
+    cartId.value = res.data.id;
+    qty.value = res.data.qty;
+    money.value = res.data.money;
+  } catch (err) {
+    console.error(err);
+  }
 };
 </script>
