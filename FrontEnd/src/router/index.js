@@ -1,12 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import TheProduct from '../components/TheProduct.vue'
 import TheLogin from '../components/TheLogin.vue'
-import TheHome from '../components/TheHome.vue';
+import TheHome from '../components/TheHome.vue'
 import TheRegister from '../components/TheRegister.vue'
 import PageMember from '@/components/PageMember.vue'
 import ProductShow from "../components/ProductShow.vue"
 import CartShow from "../components/CartShow.vue"
 import CartList from "../components/CartList.vue"
+import AdminMembers from '@/components/AdminMembers.vue'
 
 const routes = [
     {
@@ -34,7 +35,6 @@ const routes = [
         name: 'PageMember',
         component: PageMember
     },
-    // --- เพิ่ม 3 Routes ด้านล่างนี้สำหรับ Lab 11 ---
     {
         path: '/ProductShow/:pdId',
         name: 'ProductShow',
@@ -49,6 +49,11 @@ const routes = [
         path: '/cartList',
         name: 'CartList',
         component: CartList
+    },
+    {
+        path: '/admin/members',
+        name: 'AdminMembers',
+        component: AdminMembers
     }
 ]
 

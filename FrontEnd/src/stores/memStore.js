@@ -1,8 +1,7 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
-// URL ของ Backend Lab 10
-const API_URL = 'http://localhost:3000'
+const API_URL = ''
 
 export const useMemStore = defineStore('mem', {
   state: () => ({
@@ -12,6 +11,10 @@ export const useMemStore = defineStore('mem', {
     isLogin: false
   }),
 
+  getters: {
+    isAdmin: (state) => state.dutyId === 'admin'
+  },
+
   actions: {
     // 1. เข้าสู่ระบบ (Login)
     async login(loginName, password) {
@@ -19,17 +22,17 @@ export const useMemStore = defineStore('mem', {
         const res = await axios.post(
           `${API_URL}/members/login`,
           { loginName, password },
-          { withCredentials: true } // 👈 สำคัญ! ให้ Browser รับ Cookie HTTP-only จาก Backend
+          { withCredentials: true }
         )
 
         if (res.data.login) {
-          await this.checkAuth() // Login สำเร็จ ดึงข้อมูลสมาชิกทันที
-          return true
+          await this.checkAuth()
+          return { success: true, dutyId: this.dutyId }
         }
-        return false
+        return { success: false, message: res.data.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' }
       } catch (err) {
         console.error('Login error:', err)
-        return false
+        return { success: false, message: 'เกิดข้อผิดพลาดในการเชื่อมต่อ Server' }
       }
     },
 
@@ -37,13 +40,13 @@ export const useMemStore = defineStore('mem', {
     async checkAuth() {
       try {
         const res = await axios.get(`${API_URL}/members/detail`, {
-          withCredentials: true // 👈 สำคัญ! แนบ Cookie token ไปเช็กกับ Backend
+          withCredentials: true
         })
 
         if (res.data.login) {
           this.memEmail = res.data.memEmail
           this.memName = res.data.memName
-          this.dutyId = res.data.dutyId
+          this.dutyId = res.data.dutyId || 'member'
           this.isLogin = true
         } else {
           this.clearUser()
@@ -53,11 +56,29 @@ export const useMemStore = defineStore('mem', {
       }
     },
 
-    // 3. ออกจากระบบ (Logout)
+    // 3. แก้ไขข้อมูลส่วนตัว (Update Profile)
+    async updateProfile(memName, password) {
+      try {
+        const res = await axios.put(
+          `${API_URL}/members/update`,
+          { memEmail: this.memEmail, memName, password },
+          { withCredentials: true }
+        )
+        if (res.data.success) {
+          this.memName = memName
+          return { success: true, message: res.data.message }
+        }
+        return { success: false, message: res.data.message }
+      } catch (err) {
+        return { success: false, message: err.message }
+      }
+    },
+
+    // 4. ออกจากระบบ (Logout)
     async logout() {
       try {
         await axios.get(`${API_URL}/members/logout`, {
-          withCredentials: true // 👈 สั่งให้ Backend ลบ Cookie
+          withCredentials: true
         })
       } catch (err) {
         console.error('Logout error:', err)
