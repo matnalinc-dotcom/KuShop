@@ -1,0 +1,24 @@
+import express from "express"
+import jwt from "jsonwebtoken"
+const app = express()
+const port = 3000
+// รับ parameter เป็น Key ของ Signature
+app.get('/token/:key', (req, res) => {
+    const authHeader = req.headers['authorization'] //อ่านค่าจาก Header จาก req ที่ส่งมาจาก Frontend
+    console.log(`Authorization Header==>${authHeader}`) 
+    try {
+        const secreatkey=req.params.key
+        const token = authHeader.split(' ')[1]; //ตัด String ของ Header เพื่อเอาเฉพาะส่วน Token
+        const user = jwt.verify(token,secreatkey) //ทำการถอดรหัส
+        console.log(user)
+        return res.status(200).json(user)
+    }
+    catch (err) {
+        console.log('error', err.message)
+        return res.status(403).json({ message: err.message})
+    }
+})
+
+app.listen(port, () => {
+    console.log(`Server is Running [Token] on port ${port}`)
+})
